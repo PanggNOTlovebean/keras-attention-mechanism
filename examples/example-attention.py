@@ -7,7 +7,7 @@ import numpy as np
 from keract import get_activations
 from tensorflow.keras import Sequential
 from tensorflow.keras.callbacks import Callback
-from tensorflow.keras.layers import Dense, Dropout, LSTM
+from tensorflow.keras.layers import Dense, Dropout, LSTM , Bidirectional
 
 from attention import Attention
 
@@ -45,7 +45,11 @@ def main():
     seq_length = 20
     x_train, y_train = task_add_two_numbers_after_delimiter(20_000, seq_length)
     x_val, y_val = task_add_two_numbers_after_delimiter(4_000, seq_length)
-
+    
+    print(x_train.shape)
+    print(y_train.shape)
+    print(x_val.shape)
+    print(y_val.shape)
     # just arbitrary values. it's for visual purposes. easy to see than random values.
     test_index_1 = 4
     test_index_2 = 9
@@ -56,8 +60,14 @@ def main():
     x_test_mask[:, test_index_1:test_index_1 + 1] = 1
     x_test_mask[:, test_index_2:test_index_2 + 1] = 1
 
+    
+    
     model = Sequential([
-        LSTM(100, input_shape=(seq_length, 1), return_sequences=True),
+        Bidirectional(LSTM(100, return_sequences=True), input_shape=(seq_length, 1)),
+        
+        Bidirectional(LSTM(100, return_sequences=True)),
+        Bidirectional(LSTM(100, return_sequences=True)),
+        Bidirectional(LSTM(100, return_sequences=True)),
         Attention(name='attention_weight'),
         Dropout(0.2),
         Dense(1, activation='linear')
@@ -70,27 +80,27 @@ def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    max_epoch = int(sys.argv[1]) if len(sys.argv) > 1 else 200
+    max_epoch = int(sys.argv[1]) if len(sys.argv) > 1 else 3
 
-    class VisualiseAttentionMap(Callback):
+    # class VisualiseAttentionMap(Callback):
 
-        def on_epoch_end(self, epoch, logs=None):
-            attention_map = get_activations(model, x_test, layer_names='attention_weight')['attention_weight']
+    #     def on_epoch_end(self, epoch, logs=None):
+    #         attention_map = get_activations(model, x_test, layer_names='attention_weight')['attention_weight']
 
-            # top is attention map.
-            # bottom is ground truth.
-            plt.imshow(np.concatenate([attention_map, x_test_mask]), cmap='hot')
+    #         # top is attention map.
+    #         # bottom is ground truth.
+    #         plt.imshow(np.concatenate([attention_map, x_test_mask]), cmap='hot')
 
-            iteration_no = str(epoch).zfill(3)
-            plt.axis('off')
-            plt.title(f'Iteration {iteration_no} / {max_epoch}')
-            plt.savefig(f'{output_dir}/epoch_{iteration_no}.png')
-            plt.close()
-            plt.clf()
+    #         iteration_no = str(epoch).zfill(3)
+    #         plt.axis('off')
+    #         plt.title(f'Iteration {iteration_no} / {max_epoch}')
+    #         plt.savefig(f'{output_dir}/epoch_{iteration_no}.png')
+    #         plt.close()
+    #         plt.clf()
 
-    model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=max_epoch,
-              batch_size=64, callbacks=[VisualiseAttentionMap()])
-
+    history=model.fit(x_train, y_train, validation_data=(x_val, y_val), epochs=max_epoch,
+              batch_size=64)
+    print(history)
 
 if __name__ == '__main__':
     main()
